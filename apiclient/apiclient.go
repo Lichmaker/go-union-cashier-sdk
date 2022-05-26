@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -50,7 +49,7 @@ func NewClient(c Config) Client {
 	}
 }
 
-func (c Client) Do(req apirequest.Request) (map[string]interface{}, error) {
+func (c Client) Do(req apirequest.Request) ([]byte, error) {
 	body := RequestBody{
 		App_id:      c.Conf.AppID,
 		Method:      req.ApiInterfaceId + "." + req.MethodName,
@@ -80,9 +79,13 @@ func (c Client) Do(req apirequest.Request) (map[string]interface{}, error) {
 
 	defer resp.Body.Close()
 	dataByte, _ := ioutil.ReadAll(resp.Body)
-	respBody := make(map[string]interface{})
-	json.Unmarshal(dataByte, &respBody)
-	return respBody, nil
+
+	err = signaturebuilder.Verify(dataByte, c.Conf.PublicKeyPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "验签失败")
+	}
+
+	return dataByte, nil
 }
 
 func (c Client) GenMerOrdrNo() string {
